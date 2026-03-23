@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diário Escolar Pro - Relatório Diário</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --web-color: #2980b9;
+            --sales-color: #27ae60;
+            --bg-light: #f4f7f6;
+            --text-dark: #2c3e50;
+            --danger: #c0392b;
+            --warning: #f1c40f; 
+            --success: #27ae60;
+            --info: #3498db;
+            --report-btn: #8e44ad;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 15px;
+        }
+
+        body.theme-web { --main-color: var(--web-color); }
+        body.theme-sales { --main-color: var(--sales-color); }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: var(--main-color);
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .tabs { display: flex; background: #ecf0f1; border-bottom: 2px solid #bdc3c7; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-size: 14px; font-weight: 600; color: #7f8c8d; cursor: pointer; }
+        .tab-btn.active { color: var(--main-color); background: white; border-bottom: 4px solid var(--main-color); }
+
+        .content { padding: 20px; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .calendar-container {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 20px;
+            max-width: 280px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-top: 5px;
+        }
+
+        .calendar-day-head { font-weight: bold; text-align: center; font-size: 10px; color: #7f8c8d; }
+
+        .calendar-day {
+            aspect-ratio: 1 / 1;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+        }
+
+        .calendar-day:hover { background-color: #f8f9fa; }
+        .calendar-day.selected { border: 2px solid var(--main-color); font-weight: bold; color: var(--main-color); }
+        
+        .day-cidadania { background-color: #fff9c4 !important; color: #856404; font-weight: bold; }
+        .day-has-obs::after {
+            content: '';
+            position: absolute;
+            top: 2px; right: 2px;
+            width: 5px; height: 5px;
+            background-color: var(--info);
+            border-radius: 50%;
+        }
+
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        
+        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        button { padding: 8px 15px; border: none; border-radius: 6px; background-color: var(--main-color); color: white; cursor: pointer; font-weight: bold; }
+        
+        .btn-sync { background-color: #555; font-size: 12px; margin-bottom: 10px;}
+        .btn-report { background-color: var(--report-btn); color: white; margin-top: 10px; width: 100%; font-size: 14px; }
+        .btn-report:hover { background-color: #732d91; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background-color: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #eee; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+
+        .month-section { margin-bottom: 30px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+        .month-header { background: #34495e; color: white; padding: 8px 15px; font-weight: bold; text-transform: uppercase; font-size: 14px; }
+
+        .input-name {
+            border: 1px transparent;
+            background: transparent;
+            font-weight: bold;
+            width: 100%;
+            color: var(--text-dark);
+            transition: 0.3s;
+        }
+        .input-name:focus {
+            background: #fff;
+            border-color: var(--info);
+            padding-left: 5px;
+            outline: none;
+        }
+
+        .last-seen { font-size: 12px; color: #666; font-style: italic; }
+        
+        .gender-tag { 
+            font-size: 10px; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            margin-left: 5px; 
+            cursor: pointer; 
+            user-select: none;
+            display: inline-block;
+            font-weight: bold;
+        }
+        .tag-m { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .tag-f { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .header, .tabs, .controls, button { display: none !important; }
+            .container { box-shadow: none; max-width: 100%; margin: 0; }
+            .content { padding: 0; }
+            .month-section { page-break-inside: avoid; border: 1px solid #000; margin-bottom: 20px; }
+            .month-header { background: #eee !important; color: black !important; border-bottom: 1px solid #000; }
+            table th, table td { border: 1px solid #000 !important; color: #000 !important; }
+            th, td { padding: 4px !important; font-size: 10px !important; }
+        }
+    </style>
+</head>
+<body class="theme-web">
+
+<div class="container">
+    <div class="header">
+        <h2 style="margin:0 0 10px 0;">Diário de Classe</h2>
+        <div style="display: flex; justify-content: center; gap: 10px; align-items: center;">
+            <select id="classSelector" onchange="switchClass()" style="max-width:250px;">
+                <option value="web_tarde">💻 Programador Web - TARDE</option>
+                <option value="web_noite">🌙 Programador Web - NOITE</option>
+                <option value="vendas_tarde">🛍️ Promotor de Vendas - TARDE</option>
+                <option value="vendas_noite">🌙 Promotor de Vendas - NOITE</option>
+            </select>
+            <button onclick="loadData()" class="btn-sync">🔄 Sincronizar</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('chamada', this)">📝 Chamada</button>
+        <button class="tab-btn" onclick="openTab('relatorio', this)">📊 Relatório Geral</button>
+        <button class="tab-btn" onclick="openTab('mapa', this)">📅 Mapa Detalhado</button>
+    </div>
+
+    <div id="chamada" class="content tab-pane active">
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start;">
+            <div class="calendar-container">
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <small><strong id="calendarMonth">Mês</strong></small>
+                    <div style="font-size: 9px; opacity: 0.7;">
+                        <span style="margin-right:5px">🟡 Cid.</span>
+                        <span>🔵 Obs.</span>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+                <input type="date" id="attendanceDate" onchange="loadDayData()" style="width: 100%; margin-top:8px; font-size: 12px;">
+            </div>
+
+            <div style="flex: 1; min-width: 300px;">
+                <div class="controls">
+                    <div class="input-group">
+                        <label style="font-size: 12px; font-weight: bold;">Atividade:</label>
+                        <select id="classType" onchange="updateUI()">
+                            <option value="oficina">🛠️ Oficina Prática</option>
+                            <option value="cidadania">⚖️ Cidadania</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="flex-grow: 1;">
+                        <label style="font-size: 12px; font-weight: bold;">Novo Aluno:</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="text" id="newStudentName" placeholder="Nome..." style="width:60%">
+                            <select id="newStudentGender" style="width:25%">
+                                <option value="M">Masc</option>
+                                <option value="F">Fem</option>
+                            </select>
+                            <button onclick="addStudent()">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Aluno</th>
+                            <th style="width: 60px">Status</th>
+                            <th style="width: 80px">Hora</th>
+                            <th>Obs/Justificativa</th>
+                            <th style="width: 30px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyBody"></tbody>
+                </table>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="saveBtn" onclick="saveDailyData()" style="flex: 2; font-size: 16px;">💾 Salvar Chamada</button>
+                    <button onclick="generateDailyTextReport()" class="btn-report" style="flex: 1;">📋 Copiar Resumo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="relatorio" class="content tab-pane">
+        <h3>Resumo de Frequência</h3>
+        <table style="width:100%">
+            <thead>
+                <tr>
+                    <th>Aluno</th>
+                    <th style="text-align:center">P</th>
+                    <th style="text-align:center">A</th>
+                    <th style="text-align:center">F</th>
+                    <th>Última Presença</th>
+                </tr>
+            </thead>
+            <tbody id="reportBody"></tbody>
+        </table>
+    </div>
+
+    <div id="mapa" class="content tab-pane">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0;">Mapa de Frequência por Mês</h3>
+            <button onclick="window.print()" style="background-color: #34495e;">🖨️ Imprimir p/ Coordenadora</button>
+        </div>
+        <p style="font-size: 13px; color: #7f8c8d; margin-top: 0;">
+            <strong>P</strong>: Presente | <strong>F</strong>: Falta | <strong>A</strong>: Atestado/Just.
+        </p>
+        <div id="detailedReportContainer">
+            </div>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHA_G5B0stOoJke5JkW14-nCwa0qGZpcLEVfdw8NonE9g9mvkihwT4SR0jNTQw3Uo2/exec";
+    let currentClass = 'web_tarde';
+    let students = [];
+    let historyData = {}; 
+
+    window.onload = () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('attendanceDate').value = today;
+        switchClass();
+    };
+
+    function switchClass() {
+        currentClass = document.getElementById('classSelector').value;
+        document.body.className = currentClass.includes('web') ? 'theme-web' : 'theme-sales';
+        loadData();
+    }
+
+    async function loadData() {
+        const syncBtn = document.querySelector('.btn-sync');
+        syncBtn.innerText = "⏳ Carregando...";
+        try {
+            const nocacheUrl = `${SCRIPT_URL}?t=${new Date().getTime()}`;
+            const response = await fetch(nocacheUrl);
+            const allData = await response.json();
+            
+            const classes = ['web_tarde', 'web_noite', 'vendas_tarde', 'vendas_noite'];
+            classes.forEach(c => {
+                if(allData[`stu_${c}`]) localStorage.setItem(`stu_${c}`, JSON.stringify(allData[`stu_${c}`]));
+                if(allData[`hist_${c}`]) localStorage.setItem(`hist_${c}`, JSON.stringify(allData[`hist_${c}`]));
+            });
+
+            students = allData[`stu_${currentClass}`] || [];
+            historyData = allData[`hist_${currentClass}`] || {};
+            syncBtn.innerText = "🔄 Sincronizar";
+        } catch (e) {
+            students = JSON.parse(localStorage.getItem(`stu_${currentClass}`)) || [];
+            historyData = JSON.parse(localStorage.getItem(`hist_${currentClass}`)) || {};
+            syncBtn.innerText = "⚠️ Offline";
+        }
+        students.sort((a, b) => a.name.localeCompare(b.name));
+        loadDayData();
+    }
+
+    function loadDayData() {
+        const date = document.getElementById('attendanceDate').value;
+        const dayRecord = historyData[date] || {};
+        document.getElementById('classType').value = dayRecord._type || 'oficina';
+        renderCalendar();
+        renderAttendanceTable();
+        updateUI();
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const monthLabel = document.getElementById('calendarMonth');
+        grid.innerHTML = '';
+        const dateValue = document.getElementById('attendanceDate').value;
+        if(!dateValue) return;
+        const [year, month, day] = dateValue.split('-').map(Number);
+        const firstDay = new Date(year, month - 1, 1).getDay();
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        monthLabel.innerText = `${monthNames[month-1]} ${year}`;
+
+        ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(h => {
+            const el = document.createElement('div');
+            el.className = 'calendar-day-head';
+            el.innerText = h;
+            grid.appendChild(el);
+        });
+
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day';
+            dayEl.innerText = d;
+            const record = historyData[fullDate];
+            if (record) {
+                if (record._type === 'cidadania') dayEl.classList.add('day-cidadania');
+                const hasObs = Object.keys(record).some(k => k !== '_type' && record[k].obs && record[k].obs.trim() !== "");
+                if (hasObs) dayEl.classList.add('day-has-obs');
+            }
+            if (d === day) dayEl.classList.add('selected');
+            dayEl.onclick = () => {
+                document.getElementById('attendanceDate').value = fullDate;
+                loadDayData();
+            };
+            grid.appendChild(dayEl);
+        }
+    }
+
+    function renderAttendanceTable() {
+        const date = document.getElementById('attendanceDate').value;
+        const tbody = document.getElementById('dailyBody');
+        tbody.innerHTML = '';
+        const dayRecord = historyData[date] || {};
+        
+        students.forEach(s => {
+            const record = dayRecord[s.id] || { status: 'P', time: '', obs: '' };
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="input-name" id="name_${s.id}" value="${s.name}"></td>
+                <td>
+                    <select id="status_${s.id}">
+                        <option value="P" ${record.status === 'P' ? 'selected' : ''}>P</option>
+                        <option value="A" ${record.status === 'A' ? 'selected' : ''}>A</option>
+                        <option value="F" ${record.status === 'F' ? 'selected' : ''}>F</option>
+                    </select>
+                </td>
+                <td><input type="time" id="time_${s.id}" value="${record.time || ''}" style="width:70px"></td>
+                <td><input type="text" id="obs_${s.id}" value="${record.obs || ''}" style="width:100%"></td>
+                <td><button onclick="removeStudent(${s.id})" style="color:red; background:none; padding:0;">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function saveDailyData() {
+        const saveBtn = document.getElementById('saveBtn');
+        const date = document.getElementById('attendanceDate').value;
+        saveBtn.disabled = true;
+        saveBtn.innerText = "⏳ Gravando...";
+
+        if(!historyData[date]) historyData[date] = {};
+        historyData[date]._type = document.getElementById('classType').value;
+
+        students.forEach(s => {
+            const updatedName = document.getElementById(`name_${s.id}`).value.trim();
+            if(updatedName) s.name = updatedName;
+            historyData[date][s.id] = {
+                status: document.getElementById(`status_${s.id}`).value,
+                time: document.getElementById(`time_${s.id}`).value,
+                obs: document.getElementById(`obs_${s.id}`).value
+            };
+        });
+
+        localStorage.setItem(`stu_${currentClass}`, JSON.stringify(students));
+        localStorage.setItem(`hist_${currentClass}`, JSON.stringify(historyData));
+
+        const dataToSave = {};
+        ['web_tarde', 'web_noite', 'vendas_tarde', 'vendas_noite'].forEach(c => {
+            dataToSave[`stu_${c}`] = JSON.parse(localStorage.getItem(`stu_${c}`)) || [];
+            dataToSave[`hist_${c}`] = JSON.parse(localStorage.getItem(`hist_${c}`)) || {};
+        });
+
+        try {
+            await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(dataToSave) });
+            setTimeout(() => {
+                saveBtn.disabled = false;
+                saveBtn.innerText = "💾 Salvar Chamada";
+                alert("Salvo com sucesso!");
+                renderCalendar();
+            }, 1000);
+        } catch (e) {
+            saveBtn.disabled = false;
+            alert("Erro na conexão.");
+        }
+    }
+
+    function addStudent() {
+        const name = document.getElementById('newStudentName').value.trim();
+        const gender = document.getElementById('newStudentGender').value;
+        if(!name) return;
+        students.push({ id: Date.now(), name: name, gender: gender });
+        students.sort((a, b) => a.name.localeCompare(b.name));
+        document.getElementById('newStudentName').value = '';
+        renderAttendanceTable();
+    }
+
+    function removeStudent(id) {
+        if(confirm("Remover aluno?")) {
+            students = students.filter(s => s.id !== id);
+            renderAttendanceTable();
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('attendanceDate').style.backgroundColor = 
+            (document.getElementById('classType').value === 'cidadania') ? "#fff9c4" : "white";
+    }
+
+    function openTab(tabName, btn) {
+        document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        btn.classList.add('active');
+        if(tabName === 'relatorio') generateReport();
+        if(tabName === 'mapa') generateDetailedReport();
+    }
+
+    function generateReport() {
+        const tbody = document.getElementById('reportBody');
+        tbody.innerHTML = '';
+        const sortedDates = Object.keys(historyData).sort().reverse();
+        students.forEach(s => {
+            let p = 0, a = 0, f = 0;
+            let lastDate = "---";
+            Object.values(historyData).forEach(day => {
+                if(day[s.id]) {
+                    if(day[s.id].status === 'P') p++;
+                    if(day[s.id].status === 'A') a++;
+                    if(day[s.id].status === 'F') f++;
+                }
+            });
+            for (let d of sortedDates) {
+                if (historyData[d][s.id]?.status === 'P') {
+                    const [y, m, day] = d.split('-');
+                    lastDate = `${day}/${m}/${y}`;
+                    break;
+                }
+            }
+            tbody.innerHTML += `<tr><td><strong>${s.name}</strong></td><td align="center">${p}</td><td align="center">${a}</td><td align="center">${f}</td><td class="last-seen">${lastDate}</td></tr>`;
+        });
+    }
+
+    function generateDailyTextReport() {
+        const selClass = document.getElementById('classSelector');
+        const className = selClass.options[selClass.selectedIndex].text;
+        const rawDate = document.getElementById('attendanceDate').value;
+        const [y, m, d] = rawDate.split('-');
+        const type = document.getElementById('classType').value === 'oficina' ? '🛠️ Oficina' : '⚖️ Cidadania';
+        let p = 0, f = 0;
+        students.forEach(s => document.getElementById(`status_${s.id}`).value === 'P' ? p++ : f++);
+        let text = `📅 *RELATÓRIO*\nTurma: ${className}\nData: ${d}/${m}/${y}\nTipo: ${type}\n✅ Pres.: ${p}\n❌ Faltas: ${f}`;
+        navigator.clipboard.writeText(text).then(() => alert("Resumo copiado!"));
+    }
+
+    function generateDetailedReport() {
+        const container = document.getElementById('detailedReportContainer');
+        container.innerHTML = '';
+        const dates = Object.keys(historyData).sort();
+        if(!dates.length) return container.innerHTML = '<p>Sem dados.</p>';
+
+        // Agrupar por Meses
+        const months = {};
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+        dates.forEach(d => {
+            const [y, m] = d.split('-');
+            const key = `${y}-${m}`;
+            if(!months[key]) months[key] = [];
+            months[key].push(d);
+        });
+
+        // Gerar tabelas para cada mês
+        Object.keys(months).reverse().forEach(key => {
+            const [y, m] = key.split('-');
+            const monthSection = document.createElement('div');
+            monthSection.className = 'month-section';
+            
+            let html = `<div class="month-header">${monthNames[parseInt(m)-1]} ${y}</div>`;
+            html += `<div style="overflow-x:auto;"><table><thead><tr><th style="position:sticky;left:0;background:#f8f9fa;">Aluno</th>`;
+            
+            months[key].forEach(d => {
+                const day = d.split('-')[2];
+                html += `<th style="text-align:center; min-width:30px;">${day}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            students.forEach(s => {
+                html += `<tr><td style="position:sticky;left:0;background:white;font-weight:bold;border-right:1px solid #ddd;">${s.name}</td>`;
+                months[key].forEach(d => {
+                    const status = historyData[d][s.id]?.status || '-';
+                    let color = "#bdc3c7";
+                    if(status === 'P') color = 'var(--success)';
+                    if(status === 'F') color = 'var(--danger)';
+                    if(status === 'A') color = 'var(--warning)';
+                    html += `<td align="center" style="color:${color};font-weight:bold; border-left:1px solid #f9f9f9;">${status}</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            monthSection.innerHTML = html;
+            container.appendChild(monthSection);
+        });
+    }
+</script>
+</body>
+</html>
