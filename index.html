@@ -367,8 +367,17 @@
         students.forEach(s => {
             const record = dayRecord[s.id] || { status: 'P', time: '', obs: '' };
             const tr = document.createElement('tr');
+            
+            // Aqui está a alteração com a foto do aluno
             tr.innerHTML = `
-                <td><input type="text" class="input-name" id="name_${s.id}" value="${s.name}"></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="img/${s.name}.jpg" 
+                             onerror="this.src='img/default.jpg'" 
+                             style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; background-color: #eee;">
+                        <input type="text" class="input-name" id="name_${s.id}" value="${s.name}">
+                    </div>
+                </td>
                 <td>
                     <select id="status_${s.id}">
                         <option value="P" ${record.status === 'P' ? 'selected' : ''}>P</option>
@@ -500,7 +509,6 @@
         const dates = Object.keys(historyData).sort();
         if(!dates.length) return container.innerHTML = '<p>Sem dados.</p>';
 
-        // Agrupar por Meses
         const months = {};
         const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -511,7 +519,6 @@
             months[key].push(d);
         });
 
-        // Gerar tabelas para cada mês
         Object.keys(months).reverse().forEach(key => {
             const [y, m] = key.split('-');
             const monthSection = document.createElement('div');
