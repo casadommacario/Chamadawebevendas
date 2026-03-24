@@ -358,6 +358,26 @@
         }
     }
 
+    // NOVA FUNÇÃO: O "CAÇADOR DE FOTOS"
+    // Ele tenta achar a foto com várias extensões diferentes antes de desistir
+    function tryNextImageFormat(imgElement, studentName) {
+        let attempt = parseInt(imgElement.getAttribute('data-attempt') || '0');
+        
+        if (attempt === 0) {
+            imgElement.setAttribute('data-attempt', '1');
+            imgElement.src = `img/${studentName}.JPG`; // Tenta maiúsculo (Maioria das suas fotos)
+        } else if (attempt === 1) {
+            imgElement.setAttribute('data-attempt', '2');
+            imgElement.src = `img/${studentName}.jfif`; // Tenta jfif (Foto do Cristopher)
+        } else if (attempt === 2) {
+            imgElement.setAttribute('data-attempt', '3');
+            imgElement.src = `img/${studentName}.png`; // Tenta png por garantia
+        } else {
+            // Se tentou tudo e não achou, põe a padrão
+            imgElement.src = 'img/default.jpg'; 
+        }
+    }
+
     function renderAttendanceTable() {
         const date = document.getElementById('attendanceDate').value;
         const tbody = document.getElementById('dailyBody');
@@ -368,12 +388,12 @@
             const record = dayRecord[s.id] || { status: 'P', time: '', obs: '' };
             const tr = document.createElement('tr');
             
-            // Aqui está a alteração com a foto do aluno
             tr.innerHTML = `
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <img src="img/${s.name}.jpg" 
-                             onerror="this.src='img/default.jpg'" 
+                             data-attempt="0"
+                             onerror="tryNextImageFormat(this, '${s.name}')" 
                              style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; background-color: #eee;">
                         <input type="text" class="input-name" id="name_${s.id}" value="${s.name}">
                     </div>
