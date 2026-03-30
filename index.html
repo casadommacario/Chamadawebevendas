@@ -16,6 +16,7 @@
             --success: #27ae60;
             --info: #3498db;
             --report-btn: #8e44ad;
+            --inactive-bg: #fce4ec; /* Cor para alunos que saíram */
         }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-light); color: var(--text-dark); margin: 0; padding: 15px; }
         body.theme-web { --main-color: var(--web-color); }
@@ -76,6 +77,10 @@
         .month-header { background: #34495e; color: white; padding: 8px 15px; font-weight: bold; text-transform: uppercase; font-size: 14px; }
         .last-seen { font-size: 12px; color: #666; font-style: italic; }
 
+        /* Estilo para Inativos */
+        .row-inactive { background-color: var(--inactive-bg) !important; opacity: 0.7; }
+        .row-inactive .input-name { text-decoration: line-through; color: #888; }
+
         @media print {
             body { background: white; padding: 0; }
             .header, .tabs, .controls, button { display: none !important; }
@@ -109,11 +114,9 @@
             <button class="tab-btn" onclick="openTab('mapa', this)">📅 Mapa Detalhado</button>
         </div>
 
-        <!-- ABA CHAMADA -->
         <div id="chamada" class="content tab-pane active">
             <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start;">
                 
-                <!-- Coluna Esquerda: Calendário -->
                 <div class="calendar-container">
                     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                         <small><strong id="calendarMonth">Mês</strong></small>
@@ -126,7 +129,6 @@
                     <input type="date" id="attendanceDate" onchange="loadDayData()" style="width: 100%; margin-top:8px; font-size: 12px;">
                 </div>
 
-                <!-- Coluna Direita: Lista -->
                 <div style="flex: 1; min-width: 300px;">
                     <div class="controls">
                         <div class="input-group">
@@ -153,7 +155,7 @@
                         <thead>
                             <tr>
                                 <th>Aluno</th>
-                                <th style="width: 60px">Status</th>
+                                <th style="width: 80px">Status</th>
                                 <th style="width: 80px">Hora</th>
                                 <th>Obs/Justificativa</th>
                                 <th style="width: 30px"></th>
@@ -162,10 +164,8 @@
                         <tbody id="dailyBody"></tbody>
                     </table>
 
-                    <!-- BARRA DE ESTATISTICAS -->
                     <div id="statsBar" class="stats-bar">
-                        <!-- Preenchido via JS -->
-                    </div>
+                        </div>
 
                     <div style="display: flex; gap: 10px; margin-top: 15px;">
                         <button id="saveBtn" onclick="saveDailyData()" style="flex: 2; font-size: 16px;">💾 Salvar Chamada</button>
@@ -175,7 +175,6 @@
             </div>
         </div>
 
-        <!-- ABA RELATÓRIO -->
         <div id="relatorio" class="content tab-pane">
             <h3>Resumo de Frequência</h3>
             <table style="width:100%">
@@ -192,14 +191,13 @@
             </table>
         </div>
 
-        <!-- ABA MAPA -->
         <div id="mapa" class="content tab-pane">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0;">Mapa de Frequência por Mês</h3>
                 <button onclick="window.print()" style="background-color: #34495e;">🖨️ Imprimir p/ Coordenadora</button>
             </div>
             <p style="font-size: 13px; color: #7f8c8d; margin-top: 0;">
-                <strong>P</strong>: Presente | <strong>F</strong>: Falta | <strong>A</strong>: Atestado/Just.
+                <strong>P</strong>: Presente | <strong>F</strong>: Falta | <strong>A</strong>: Atestado/Just. | <strong>-</strong>: Inativo
             </p>
             <div id="detailedReportContainer"></div>
         </div>
@@ -309,7 +307,6 @@
             }
         }
 
-        // Funcao para tentar achar a imagem correta
         function tryNextImageFormat(imgElement, studentName) {
             let attempt = parseInt(imgElement.getAttribute('data-attempt') || '0');
             if (attempt === 0) {
@@ -326,22 +323,37 @@
             }
         }
 
+        // NOVA FUNÇÃO: Atualiza o visual da linha baseado no status
+        function updateRowStyle(studentId) {
+            const status = document.getElementById(`status_${studentId}`).value;
+            const row = document.getElementById(`row_${studentId}`);
+            const timeInput = document.getElementById(`time_${studentId}`);
+            const obsInput = document.getElementById(`obs_${studentId}`);
+
+            if (status === '-') {
+                row.classList.add('row-inactive');
+                timeInput.disabled = true;
+                obsInput.disabled = true;
+            } else {
+                row.classList.remove('row-inactive');
+                timeInput.disabled = false;
+                obsInput.disabled = false;
+            }
+            updateStats();
+        }
+
         function renderAttendanceTable() {
             const date = document.getElementById('attendanceDate').value;
             const tbody = document.getElementById('dailyBody');
             tbody.innerHTML = '';
             const dayRecord = historyData[date] || {};
 
-            let countM = 0;
-            let countF = 0;
-
             students.forEach(s => {
-                // Contagem de generos para exibicao
-                if(s.gender === 'M') countM++;
-                else countF++;
-
                 const record = dayRecord[s.id] || { status: 'P', time: '', obs: '' };
                 const tr = document.createElement('tr');
+                tr.id = `row_${s.id}`;
+                if (record.status === '-') tr.className = 'row-inactive';
+
                 tr.innerHTML = `
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -350,24 +362,41 @@
                         </div>
                     </td>
                     <td>
-                        <select id="status_${s.id}">
+                        <select id="status_${s.id}" onchange="updateRowStyle(${s.id})">
                             <option value="P" ${record.status === 'P' ? 'selected' : ''}>P</option>
                             <option value="A" ${record.status === 'A' ? 'selected' : ''}>A</option>
                             <option value="F" ${record.status === 'F' ? 'selected' : ''}>F</option>
+                            <option value="-" ${record.status === '-' ? 'selected' : ''}>- (Inativo)</option>
                         </select>
                     </td>
-                    <td><input type="time" id="time_${s.id}" value="${record.time || ''}" style="width:70px"></td>
-                    <td><input type="text" id="obs_${s.id}" value="${record.obs || ''}" style="width:100%"></td>
+                    <td><input type="time" id="time_${s.id}" value="${record.time || ''}" style="width:70px" ${record.status === '-' ? 'disabled' : ''}></td>
+                    <td><input type="text" id="obs_${s.id}" value="${record.obs || ''}" style="width:100%" ${record.status === '-' ? 'disabled' : ''}></td>
                     <td><button onclick="removeStudent(${s.id})" style="color:red; background:none; padding:0;">✕</button></td>
                 `;
                 tbody.appendChild(tr);
             });
 
-            // ATUALIZAR A BARRA DE ESTATISTICAS NA TELA
+            updateStats();
+        }
+
+        // Centraliza a atualização dos números da barra inferior
+        function updateStats() {
+            let countM = 0;
+            let countF = 0;
+
+            students.forEach(s => {
+                const status = document.getElementById(`status_${s.id}`).value;
+                // Só conta estatística de quem NÃO está inativo
+                if (status !== '-') {
+                    if(s.gender === 'M') countM++;
+                    else countF++;
+                }
+            });
+
             const total = countM + countF;
             const statsBar = document.getElementById('statsBar');
             statsBar.innerHTML = `
-                <span>👥 Total: ${total}</span> 
+                <span>👥 Total Ativos: ${total}</span> 
                 <span style="color:#2980b9">👨 Homens: ${countM}</span> 
                 <span style="color:#c0392b">👩 Mulheres: ${countF}</span>
             `;
@@ -488,25 +517,23 @@
             
             const type = document.getElementById('classType').value === 'oficina' ? '🛠️ Oficina Prática' : '⚖️ Cidadania';
 
-            // Contadores
             let countPresentes = 0;
             let countAusentes = 0;
             let countMasc = 0;
             let countFem = 0;
-            
-            // Listas
             let missingNames = [];
 
             students.forEach(s => {
                 const status = document.getElementById(`status_${s.id}`).value;
                 
+                // Ignora inativos no relatório de texto
+                if (status === '-') return;
+
                 if (status === 'P') {
                     countPresentes++;
-                    // Conta genero somente dos presentes
                     if (s.gender === 'M') countMasc++;
                     else countFem++;
                 } else {
-                    // Tanto F quanto A contam como Ausente na frequencia
                     countAusentes++;
                     if(status === 'A') {
                         missingNames.push(s.name + " (Justificado)");
@@ -520,11 +547,9 @@
             text += `Turma: ${className}\n`;
             text += `Data: ${d}/${m}/${y}\n`;
             text += `Atividade: ${type}\n\n`;
-            
             text += `📊 Frequência:\n`;
             text += `✅ Presentes: ${countPresentes} (♂️ ${countMasc} / ♀️ ${countFem})\n`;
             text += `❌ Ausentes: ${countAusentes}\n\n`;
-            
             text += `⚠️ Ausentes:\n`;
             
             if (missingNames.length > 0) {
@@ -533,8 +558,7 @@
                 text += `Nenhum\n`;
             }
 
-            text += `📝 Obs: Nenhuma.`;
-
+            text += `\n📝 Obs: Gerado via Sistema Escolar.`;
             navigator.clipboard.writeText(text).then(() => alert("Resumo formatado copiado!"));
         }
 
@@ -578,6 +602,7 @@
                         if(status === 'P') color = 'var(--success)';
                         if(status === 'F') color = 'var(--danger)';
                         if(status === 'A') color = 'var(--warning)';
+                        if(status === '-') color = '#ddd'; // Cor neutra para inativo no mapa
                         html += `<td align="center" style="color:${color};font-weight:bold; border-left:1px solid #f9f9f9;">${status}</td>`;
                     });
                     html += `</tr>`;
